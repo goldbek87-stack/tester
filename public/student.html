@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Markazi — O'quvchi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F5F2EA; --paper-raised:#FFFFFF; --ink:#1C1B18; --ink-soft:#6B6558;
+    --line:#DCD5C4; --blue:#26356E; --blue-soft:#EEF0F8;
+    --green:#3B7A4C; --green-soft:#EAF3EC; --red:#A6392F; --red-soft:#FBECE9;
+    --radius:12px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh; background:var(--paper); color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif; -webkit-font-smoothing:antialiased;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .hidden{ display:none !important; }
+  .card{
+    background:var(--paper-raised); border:1px solid var(--line); border-radius:var(--radius);
+    width:100%; max-width:440px; overflow:hidden;
+  }
+
+  /* ---------- LOGIN ---------- */
+  #login-screen .inner{ padding:32px 28px; }
+  .brand-row{ display:flex; align-items:center; gap:10px; margin-bottom:26px; }
+  .brand-row .mark{
+    font-family:'Fraunces',serif; font-weight:600; font-size:16px; background:var(--blue); color:#fff;
+    width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+  }
+  .brand-row h1{ font-family:'Fraunces',serif; font-weight:600; font-size:19px; margin:0; }
+  label{ display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin:16px 0 6px; text-transform:uppercase; letter-spacing:.04em; }
+  label:first-of-type{ margin-top:0; }
+  input{
+    width:100%; padding:13px 14px; border:1px solid var(--line); border-radius:8px;
+    background:var(--paper); font-family:'Inter'; font-size:16px; color:var(--ink);
+  }
+  input#code{ font-family:'IBM Plex Mono',monospace; letter-spacing:.1em; font-size:18px; }
+  input:focus{ outline:2px solid var(--blue); outline-offset:1px; }
+  button.primary{
+    margin-top:22px; width:100%; padding:14px; border:none; border-radius:8px; background:var(--blue);
+    color:#fff; font-family:'Inter'; font-weight:600; font-size:15px; cursor:pointer;
+  }
+  button.primary:disabled{ background:#B7BBD1; }
+  .errline{ display:none; margin-top:12px; padding:10px 13px; background:var(--red-soft); color:var(--red); border-radius:7px; font-size:13.5px; }
+
+  /* ---------- QUIZ ---------- */
+  #quiz-screen .topbar{
+    background:var(--blue); color:#fff; padding:16px 22px; display:flex; justify-content:space-between; align-items:center;
+  }
+  #quiz-screen .progress{ font-family:'IBM Plex Mono',monospace; font-size:13px; opacity:.85; }
+  #quiz-screen .timer{ font-family:'IBM Plex Mono',monospace; font-size:17px; font-weight:600; }
+  #quiz-screen .timer.low{ color:#FFD3CC; }
+  .progress-bar{ height:3px; background:rgba(255,255,255,.25); }
+  .progress-bar-fill{ height:100%; background:#fff; transition:width .25s; }
+
+  #quiz-screen .body{ padding:26px 24px; }
+  .question-text{ font-family:'Fraunces',serif; font-size:19px; font-weight:500; line-height:1.4; margin:0 0 22px; }
+  .option{
+    display:flex; align-items:center; gap:12px; width:100%; text-align:left; padding:13px 15px;
+    border:1.5px solid var(--line); border-radius:9px; background:var(--paper); margin-bottom:10px;
+    font-family:'Inter'; font-size:15px; color:var(--ink); cursor:pointer;
+  }
+  .option .letter{
+    width:26px; height:26px; border-radius:50%; border:1.5px solid var(--line); flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:600; color:var(--ink-soft);
+    font-family:'IBM Plex Mono',monospace;
+  }
+  .option.selected{ border-color:var(--blue); background:var(--blue-soft); }
+  .option.selected .letter{ background:var(--blue); border-color:var(--blue); color:#fff; }
+
+  .nav-row{ display:flex; gap:10px; padding:0 24px 26px; }
+  .nav-row button{
+    flex:1; padding:13px; border-radius:8px; font-family:'Inter'; font-weight:600; font-size:14.5px; cursor:pointer;
+  }
+  .nav-row .back{ background:var(--paper); border:1px solid var(--line); color:var(--ink); }
+  .nav-row .next{ background:var(--blue); border:none; color:#fff; }
+  .nav-row .next:disabled{ background:#B7BBD1; cursor:not-allowed; }
+
+  /* ---------- RESULT ---------- */
+  #result-screen .inner{ padding:38px 30px; text-align:center; }
+  #result-screen .eyebrow{ font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-soft); margin:0 0 10px; }
+  #result-screen .score{ font-family:'IBM Plex Mono',monospace; font-size:52px; font-weight:600; margin:0; }
+  #result-screen .score.good{ color:var(--green); }
+  #result-screen .score.bad{ color:var(--red); }
+  #result-screen .sub{ color:var(--ink-soft); font-size:14px; margin:8px 0 26px; }
+  .stat-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:26px; }
+  .stat-grid .box{ border:1px solid var(--line); border-radius:8px; padding:12px 6px; background:var(--paper); }
+  .stat-grid .n{ font-family:'IBM Plex Mono',monospace; font-size:18px; font-weight:600; }
+  .stat-grid .l{ font-size:11px; color:var(--ink-soft); margin-top:2px; }
+</style>
+</head>
+<body>
+
+<!-- 1) KIRISH -->
+<div id="login-screen" class="card">
+  <div class="inner">
+    <div class="brand-row">
+      <div class="mark">TM</div>
+      <h1>Test Markazi</h1>
+    </div>
+    <label>Ism va familiya</label>
+    <input type="text" id="student-name" placeholder="Aliyev Ali">
+    <label>Test kodi</label>
+    <input type="text" id="code" placeholder="847291" maxlength="6" inputmode="numeric">
+    <button class="primary" id="btn-start">Testni boshlash</button>
+    <div class="errline" id="login-err"></div>
+  </div>
+</div>
+
+<!-- 2) TEST -->
+<div id="quiz-screen" class="card hidden">
+  <div class="topbar">
+    <span class="progress" id="progress-label">1 / 10</span>
+    <span class="timer" id="timer-label">30:00</span>
+  </div>
+  <div class="progress-bar"><div class="progress-bar-fill" id="progress-fill" style="width:0%"></div></div>
+  <div class="body">
+    <p class="question-text" id="question-text"></p>
+    <div id="options-container"></div>
+  </div>
+  <div class="nav-row">
+    <button class="back" id="btn-back">Orqaga</button>
+    <button class="next" id="btn-next" disabled>Keyingisi</button>
+  </div>
+</div>
+
+<!-- 3) NATIJA -->
+<div id="result-screen" class="card hidden">
+  <div class="inner">
+    <p class="eyebrow" id="result-name"></p>
+    <p class="score" id="score-percent">0%</p>
+    <p class="sub" id="score-sub"></p>
+    <div class="stat-grid">
+      <div class="box"><div class="n" id="stat-correct">0</div><div class="l">To'g'ri</div></div>
+      <div class="box"><div class="n" id="stat-wrong">0</div><div class="l">Xato</div></div>
+      <div class="box"><div class="n" id="stat-time">0:00</div><div class="l">Vaqt</div></div>
+    </div>
+    <button class="primary" onclick="location.reload()">Chiqish</button>
+  </div>
+</div>
+
+<script>
+const API_URL = "https://tester-ggjt.onrender.com/api";
+
+let testMeta = null;      // { test_id, duration_min, total_questions, ... }
+let questions = [];       // [{ id, question, option_a..d, position }]
+let attemptId = null;
+let currentIndex = 0;
+let answers = {};         // { question_id: 'A'|'B'|'C'|'D' }
+let timerInterval = null;
+let secondsLeft = 0;
+
+// ---------- 1) TEST BOSHLASH ----------
+document.getElementById('btn-start').addEventListener('click', startTest);
+
+async function startTest() {
+  const name = document.getElementById('student-name').value.trim();
+  const code = document.getElementById('code').value.trim();
+  const errBox = document.getElementById('login-err');
+  errBox.style.display = 'none';
+
+  if (!name || !code) {
+    errBox.textContent = "Ism va test kodini kiriting";
+    errBox.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('btn-start');
+  btn.disabled = true; btn.textContent = 'Yuklanmoqda…';
+
+  try {
+    // Savollarni olish
+    const testRes = await fetch(`${API_URL}/tests/${code}`);
+    const testData = await testRes.json();
+    if (!testRes.ok) throw new Error(testData.error || "Test topilmadi");
+
+    testMeta = testData;
+    questions = testData.questions;
+
+    // Urinishni boshlash (attempt_id olamiz — natija shunga bog'lanadi)
+    const startRes = await fetch(`${API_URL}/attempts/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ test_code: code, student_name: name })
+    });
+    const startData = await startRes.json();
+    if (!startRes.ok) throw new Error(startData.error || "Boshlab bo'lmadi");
+
+    attemptId = startData.attempt_id;
+    window.__studentName = name;
+
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('quiz-screen').classList.remove('hidden');
+
+    secondsLeft = testMeta.duration_min * 60;
+    startTimer();
+    renderQuestion();
+
+  } catch (err) {
+    errBox.textContent = "Xatolik: " + err.message;
+    errBox.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Testni boshlash';
+  }
+}
+
+// ---------- TIMER ----------
+function startTimer() {
+  updateTimerLabel();
+  timerInterval = setInterval(() => {
+    secondsLeft--;
+    updateTimerLabel();
+    if (secondsLeft <= 0) {
+      clearInterval(timerInterval);
+      finishTest(); // vaqt tugasa avtomatik yakunlaydi
+    }
+  }, 1000);
+}
+function updateTimerLabel() {
+  const m = Math.floor(secondsLeft / 60);
+  const s = secondsLeft % 60;
+  const label = document.getElementById('timer-label');
+  label.textContent = `${m}:${String(s).padStart(2,'0')}`;
+  label.classList.toggle('low', secondsLeft <= 60);
+}
+
+// ---------- 2) SAVOL KO'RSATISH ----------
+function renderQuestion() {
+  const q = questions[currentIndex];
+  document.getElementById('progress-label').textContent = `${currentIndex + 1} / ${questions.length}`;
+  document.getElementById('progress-fill').style.width = `${((currentIndex) / questions.length) * 100}%`;
+  document.getElementById('question-text').textContent = q.question;
+
+  const opts = [['A', q.option_a], ['B', q.option_b], ['C', q.option_c], ['D', q.option_d]];
+  const container = document.getElementById('options-container');
+  container.innerHTML = '';
+
+  opts.forEach(([letter, text]) => {
+    const div = document.createElement('div');
+    div.className = 'option' + (answers[q.id] === letter ? ' selected' : '');
+    div.innerHTML = `<span class="letter">${letter}</span><span>${escapeHtml(text)}</span>`;
+    div.onclick = () => {
+      answers[q.id] = letter;
+      renderQuestion();
+    };
+    container.appendChild(div);
+  });
+
+  document.getElementById('btn-back').style.visibility = currentIndex === 0 ? 'hidden' : 'visible';
+  const nextBtn = document.getElementById('btn-next');
+  nextBtn.disabled = !answers[q.id];
+  nextBtn.textContent = currentIndex === questions.length - 1 ? "Yakunlash" : "Keyingisi";
+}
+
+document.getElementById('btn-back').addEventListener('click', () => {
+  if (currentIndex > 0) { currentIndex--; renderQuestion(); }
+});
+document.getElementById('btn-next').addEventListener('click', () => {
+  if (currentIndex < questions.length - 1) {
+    currentIndex++;
+    renderQuestion();
+  } else {
+    finishTest();
+  }
+});
+
+// ---------- 3) YAKUNLASH ----------
+async function finishTest() {
+  clearInterval(timerInterval);
+  document.getElementById('quiz-screen').classList.add('hidden');
+
+  const answersArray = questions.map(q => ({
+    question_id: q.id,
+    selected_answer: answers[q.id] || null
+  }));
+
+  try {
+    const res = await fetch(`${API_URL}/attempts/${attemptId}/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answers: answersArray })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Natijani yuborib bo'lmadi");
+
+    showResult(data);
+  } catch (err) {
+    alert("Xatolik: " + err.message);
+  }
+}
+
+function showResult(data) {
+  document.getElementById('result-screen').classList.remove('hidden');
+  document.getElementById('result-name').textContent = window.__studentName || '';
+
+  const pct = data.score_percent;
+  const scoreEl = document.getElementById('score-percent');
+  scoreEl.textContent = `${pct}%`;
+  scoreEl.classList.add(pct >= 60 ? 'good' : 'bad');
+
+  document.getElementById('score-sub').textContent = `${data.total} ta savoldan`;
+  document.getElementById('stat-correct').textContent = data.correct;
+  document.getElementById('stat-wrong').textContent = data.wrong;
+
+  const m = Math.floor(data.duration_sec / 60), s = data.duration_sec % 60;
+  document.getElementById('stat-time').textContent = `${m}:${String(s).padStart(2,'0')}`;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+</script>
+
+</body>
+</html>
