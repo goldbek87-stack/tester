@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Java JDK
         uses: actions/setup-java@v3
@@ -29,6 +29,11 @@ jobs:
         with:
           flutter-version: '3.19.x'
           channel: 'stable'
+
+      - name: Generate Android project files
+        run: |
+          cd student_app
+          flutter create . --platforms=android --org=com.testplatform
 
       - name: Install dependencies
         run: |
