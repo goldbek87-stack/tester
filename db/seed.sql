@@ -1,7 +1,8 @@
 -- Boshlang'ich test uchun 10 ta savol (5-sinf, Matematika, Kasrlar)
 
+-- Parol: test123 (bcrypt bilan xeshlangan, oddiy matnda saqlanmaydi)
 INSERT INTO teachers (full_name, login, password) VALUES
-('Aliyeva Nodira', 'nodira', 'test123')
+('Aliyeva Nodira', 'nodira', '$2a$10$i6XkPrFXfZB0BVaU1NGzQuGSolRHWE0Cb1t32dLieQuWCCAcnNWda')
 ON CONFLICT (login) DO NOTHING;
 
 INSERT INTO questions (grade, subject, topic, question, option_a, option_b, option_c, option_d, correct_answer, difficulty, source_book, source_page) VALUES

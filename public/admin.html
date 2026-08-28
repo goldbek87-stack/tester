@@ -24,6 +24,7 @@
     --radius:10px;
   }
   *{box-sizing:border-box;}
+  .hidden{ display:none !important; }
   body{
     margin:0;
     background:var(--paper);
@@ -146,18 +147,57 @@
   .search-row{ display:flex; gap:10px; margin-bottom:22px; }
   .search-row input{ flex:1; font-family:'IBM Plex Mono',monospace; letter-spacing:.05em; }
   .empty-state{ color:var(--ink-soft); font-size:14px; padding:30px 0; text-align:center; }
+
+  /* ---------- LOGIN ---------- */
+  #login-screen{
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  #login-screen .login-card{
+    background:var(--paper-raised); border:1px solid var(--line); border-radius:var(--radius);
+    width:100%; max-width:380px; padding:32px 28px;
+  }
+  #login-screen .brand{ display:flex; align-items:center; gap:10px; margin-bottom:26px; }
+  #login-screen input{ width:100%; padding:12px 13px; border:1px solid var(--line); border-radius:7px; background:var(--paper); font-family:'Inter'; font-size:15px; margin-top:6px; }
+  #login-screen label{ display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin:16px 0 0; text-transform:uppercase; letter-spacing:.04em; }
+  #login-screen label:first-of-type{ margin-top:0; }
+  #login-screen button{ margin-top:22px; width:100%; padding:13px; border:none; border-radius:8px; background:var(--blue); color:#fff; font-weight:600; font-size:14.5px; cursor:pointer; }
+  #login-screen .err{ display:none; margin-top:14px; padding:10px 13px; background:var(--red-soft); color:var(--red); border-radius:7px; font-size:13.5px; }
+  .logout-link{ margin-left:auto; font-size:13px; color:var(--ink-soft); cursor:pointer; text-decoration:underline; }
+  .topbar{ display:flex; align-items:center; }
 </style>
 </head>
 <body>
+
+<!-- ================= LOGIN ================= -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="brand">
+      <div class="mark">TM</div>
+      <div>
+        <h1 style="font-family:'Fraunces',serif; font-size:19px; margin:0;">Test Markazi</h1>
+      </div>
+    </div>
+    <label>Login</label>
+    <input type="text" id="login-username" placeholder="nodira">
+    <label>Parol</label>
+    <input type="password" id="login-password" placeholder="••••••••">
+    <button id="btn-login">Kirish</button>
+    <div class="err" id="login-error"></div>
+  </div>
+</div>
+
+<!-- ================= ASOSIY PANEL ================= -->
+<div id="app-screen" class="hidden">
 
 <div class="topbar">
   <div class="brand">
     <div class="mark">TM</div>
     <div>
       <h1>Test Markazi</h1>
-      <span>O'qituvchi paneli</span>
+      <span id="teacher-name-label">O'qituvchi paneli</span>
     </div>
   </div>
+  <span class="logout-link" id="btn-logout">Chiqish</span>
 </div>
 
 <nav class="tabs">
@@ -240,8 +280,79 @@
 
 </main>
 
+</div><!-- /#app-screen -->
+
 <script>
 const API = ''; // bir xil domenda ishlaydi
+let AUTH_TOKEN = localStorage.getItem('tm_token') || null;
+
+// ---------- LOGIN / LOGOUT ----------
+function showApp(teacherName) {
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('app-screen').classList.remove('hidden');
+  document.getElementById('teacher-name-label').textContent = teacherName || 'O\'qituvchi paneli';
+  loadMeta();
+}
+
+document.getElementById('btn-login').addEventListener('click', async () => {
+  const login = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errBox = document.getElementById('login-error');
+  errBox.style.display = 'none';
+
+  if (!login || !password) {
+    errBox.textContent = 'Login va parolni kiriting';
+    errBox.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('btn-login');
+  btn.disabled = true; btn.textContent = 'Tekshirilmoqda…';
+
+  try {
+    const res = await fetch(API + '/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ login, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Kirib bo\'lmadi');
+
+    AUTH_TOKEN = data.token;
+    localStorage.setItem('tm_token', AUTH_TOKEN);
+    localStorage.setItem('tm_teacher_name', data.teacher.full_name);
+    showApp(data.teacher.full_name);
+  } catch (err) {
+    errBox.textContent = err.message;
+    errBox.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Kirish';
+  }
+});
+
+document.getElementById('btn-logout').addEventListener('click', () => {
+  localStorage.removeItem('tm_token');
+  localStorage.removeItem('tm_teacher_name');
+  AUTH_TOKEN = null;
+  location.reload();
+});
+
+// Yordamchi: token bilan so'rov yuborish (401 kelsa avtomatik logout)
+async function authFetch(url, options = {}) {
+  options.headers = Object.assign({}, options.headers, { 'Authorization': 'Bearer ' + AUTH_TOKEN });
+  const res = await fetch(url, options);
+  if (res.status === 401) {
+    localStorage.removeItem('tm_token');
+    location.reload();
+    throw new Error('Sessiya tugadi, qayta kiring');
+  }
+  return res;
+}
+
+// Sahifa ochilganda: token bo'lsa to'g'ridan-to'g'ri panelni ko'rsatish
+if (AUTH_TOKEN) {
+  showApp(localStorage.getItem('tm_teacher_name'));
+}
 
 // ---------- Umumiy: tablarni almashtirish ----------
 document.querySelectorAll('nav.tabs button').forEach(btn => {
@@ -257,7 +368,7 @@ document.querySelectorAll('nav.tabs button').forEach(btn => {
 let TOPICS = [];
 
 async function loadMeta() {
-  const res = await fetch(API + '/api/meta/topics');
+  const res = await authFetch(API + '/api/meta/topics');
   const data = await res.json();
   TOPICS = data.topics;
 
@@ -342,7 +453,7 @@ document.getElementById('btn-create').addEventListener('click', async () => {
   btn.disabled = true; btn.textContent = 'Yaratilmoqda…';
 
   try {
-    const res = await fetch(API + '/api/tests', {
+    const res = await authFetch(API + '/api/tests', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ grade: Number(grade), subject, topic, easy_count, medium_count, hard_count, duration_min })
@@ -387,7 +498,7 @@ async function loadResults() {
 
   body.innerHTML = '<div class="empty-state">Yuklanmoqda…</div>';
 
-  const res = await fetch(API + `/api/attempts/by-test/${code}`);
+  const res = await authFetch(API + `/api/attempts/by-test/${code}`);
   const data = await res.json();
   const attempts = data.attempts || [];
 
@@ -430,8 +541,6 @@ function formatDuration(sec){
 function escapeHtml(s){
   return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
-
-loadMeta();
 </script>
 
 </body>

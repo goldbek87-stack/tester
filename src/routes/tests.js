@@ -2,18 +2,21 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db/pool');
 const { generateTestCode, shuffle } = require('../utils');
+const { requireAuth } = require('../middleware/auth');
 
 /**
  * POST /api/tests
  * O'qituvchi test yaratadi: sinf + fan + mavzu + oson/o'rta/qiyin soni + vaqt
- * Body: { teacher_id, grade, subject, topic, easy_count, medium_count, hard_count, duration_min }
+ * MUHIM: endi faqat tizimga kirgan o'qituvchi test yarata oladi.
+ * Body: { grade, subject, topic, easy_count, medium_count, hard_count, duration_min }
  */
-router.post('/', async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
   const {
-    teacher_id, grade, subject, topic,
+    grade, subject, topic,
     easy_count = 0, medium_count = 0, hard_count = 0,
     duration_min,
   } = req.body;
+  const teacher_id = req.teacherId;
 
   const total = Number(easy_count) + Number(medium_count) + Number(hard_count);
 

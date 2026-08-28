@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db/pool');
+const { requireAuth } = require('../middleware/auth');
 
 /**
  * GET /api/meta/topics
@@ -8,7 +9,7 @@ const pool = require('../db/pool');
  * O'qituvchi paneli shu orqali dropdownlarni to'ldiradi va
  * "bu mavzuda nechta savol bor" ekanini oldindan ko'rsatadi.
  */
-router.get('/topics', async (req, res) => {
+router.get('/topics', requireAuth, async (req, res) => {
   const { rows } = await pool.query(`
     SELECT grade, subject, topic,
            COUNT(*) FILTER (WHERE difficulty = 'easy')   AS easy_available,

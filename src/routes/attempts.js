@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db/pool');
+const { requireAuth } = require('../middleware/auth');
 
 /**
  * POST /api/attempts/start
@@ -116,10 +117,22 @@ router.post('/:id/submit', async (req, res) => {
 
 /**
  * GET /api/attempts/by-test/:test_code
- * O'qituvchi paneli: shu testni kim qanday topshirganini ko'rish
+ * O'qituvchi paneli: shu testni kim qanday topshirganini ko'rish.
+ * Faqat shu testni O'ZI yaratgan o'qituvchi ko'ra oladi.
  */
-router.get('/by-test/:test_code', async (req, res) => {
+router.get('/by-test/:test_code', requireAuth, async (req, res) => {
   const { test_code } = req.params;
+
+  const testCheck = await pool.query(
+    'SELECT id, teacher_id FROM tests WHERE test_code = $1',
+    [test_code]
+  );
+  if (testCheck.rowCount === 0) {
+    return res.status(404).json({ error: 'Test topilmadi' });
+  }
+  if (testCheck.rows[0].teacher_id !== req.teacherId) {
+    return res.status(403).json({ error: 'Bu test sizga tegishli emas' });
+  }
 
   const rows = await pool.query(
     `SELECT a.id, a.student_name, a.correct_count, a.wrong_count,
