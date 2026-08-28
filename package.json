@@ -1,0 +1,16 @@
+{
+  "name": "test-platform-api",
+  "version": "1.0.0",
+  "description": "O'quvchilar uchun test tizimi - API server (1-bosqich)",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "pg": "^8.12.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5"
+  }
+}

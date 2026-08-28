@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Markazi — O'qituvchi paneli</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F5F2EA;
+    --paper-raised:#FFFFFF;
+    --ink:#1C1B18;
+    --ink-soft:#6B6558;
+    --line:#DCD5C4;
+    --blue:#26356E;
+    --blue-soft:#EEF0F8;
+    --green:#3B7A4C;
+    --green-soft:#EAF3EC;
+    --amber:#A5701F;
+    --amber-soft:#FBF1E1;
+    --red:#A6392F;
+    --red-soft:#FBECE9;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:22px 40px;
+    border-bottom:1px solid var(--line);
+  }
+  .brand{ display:flex; align-items:baseline; gap:10px; }
+  .brand .mark{
+    font-family:'Fraunces',serif; font-weight:600; font-size:22px;
+    background:var(--blue); color:#fff; width:34px; height:34px;
+    border-radius:8px; display:flex; align-items:center; justify-content:center;
+    font-size:16px;
+  }
+  .brand h1{ font-family:'Fraunces',serif; font-weight:600; font-size:20px; margin:0; }
+  .brand span{ color:var(--ink-soft); font-size:13px; }
+
+  nav.tabs{ display:flex; gap:4px; padding:0 40px; border-bottom:1px solid var(--line); background:var(--paper); }
+  nav.tabs button{
+    border:none; background:none; padding:14px 6px; margin-right:26px;
+    font-family:'Inter'; font-size:14.5px; font-weight:600; color:var(--ink-soft);
+    cursor:pointer; border-bottom:2px solid transparent; letter-spacing:.01em;
+  }
+  nav.tabs button.active{ color:var(--blue); border-bottom-color:var(--blue); }
+
+  main{ max-width:1080px; margin:0 auto; padding:36px 40px 80px; }
+  .view{ display:none; }
+  .view.active{ display:block; }
+
+  .grid{ display:grid; grid-template-columns:1.1fr .9fr; gap:28px; align-items:start; }
+  @media (max-width:860px){ .grid{ grid-template-columns:1fr; } }
+
+  .card{
+    background:var(--paper-raised); border:1px solid var(--line); border-radius:var(--radius);
+    padding:26px 28px;
+  }
+  .card h2{ font-family:'Fraunces',serif; font-size:18px; font-weight:600; margin:0 0 4px; }
+  .card .sub{ color:var(--ink-soft); font-size:13px; margin:0 0 20px; }
+
+  label{ display:block; font-size:12.5px; font-weight:600; color:var(--ink-soft); margin:16px 0 6px; text-transform:uppercase; letter-spacing:.04em; }
+  label:first-of-type{ margin-top:0; }
+  select, input[type=number], input[type=text]{
+    width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:7px;
+    background:var(--paper); font-family:'Inter'; font-size:14.5px; color:var(--ink);
+  }
+  select:focus, input:focus{ outline:2px solid var(--blue); outline-offset:1px; }
+
+  .diff-row{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+  .diff-box{ border:1px solid var(--line); border-radius:8px; padding:10px 12px; background:var(--paper); }
+  .diff-box .diff-label{ display:flex; justify-content:space-between; font-size:12px; font-weight:600; margin-bottom:6px; text-transform:none; letter-spacing:0;}
+  .diff-box.easy .diff-label{ color:var(--green); }
+  .diff-box.medium .diff-label{ color:var(--amber); }
+  .diff-box.hard .diff-label{ color:var(--red); }
+  .diff-box input{ border:none; background:none; padding:0; font-size:20px; font-weight:600; font-family:'IBM Plex Mono',monospace; }
+  .avail{ font-weight:400; color:var(--ink-soft); font-family:'Inter'; }
+
+  .row2{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+
+  button.primary{
+    margin-top:24px; width:100%; padding:13px; border:none; border-radius:8px;
+    background:var(--blue); color:#fff; font-family:'Inter'; font-weight:600; font-size:14.5px;
+    cursor:pointer; letter-spacing:.02em;
+  }
+  button.primary:hover{ background:#1c2856; }
+  button.primary:disabled{ background:#B7BBD1; cursor:not-allowed; }
+
+  button.ghost{
+    padding:10px 16px; border:1px solid var(--line); background:var(--paper-raised);
+    border-radius:7px; font-family:'Inter'; font-weight:600; font-size:13.5px; cursor:pointer; color:var(--ink);
+  }
+  button.ghost:hover{ border-color:var(--blue); color:var(--blue); }
+
+  .errbox{
+    display:none; margin-top:14px; padding:11px 14px; background:var(--red-soft); color:var(--red);
+    border-radius:7px; font-size:13.5px; border:1px solid #ECD6D2;
+  }
+
+  /* --- Ticket (signature element): test kodi chiptaga o'xshab chiqadi --- */
+  .ticket-wrap{ position:sticky; top:24px; }
+  .ticket{
+    background:var(--blue); color:#fff; border-radius:var(--radius); overflow:hidden;
+    position:relative;
+  }
+  .ticket .top{ padding:22px 24px 18px; }
+  .ticket .eyebrow{ font-size:11.5px; text-transform:uppercase; letter-spacing:.09em; opacity:.7; margin:0 0 10px; }
+  .ticket .code{
+    font-family:'IBM Plex Mono',monospace; font-size:40px; font-weight:600; letter-spacing:.06em;
+    margin:0 0 6px;
+  }
+  .ticket .meta{ font-size:13px; opacity:.85; line-height:1.6; }
+  .perforation{
+    border-top:2px dashed rgba(255,255,255,.35); position:relative; margin:0 20px;
+  }
+  .perforation::before, .perforation::after{
+    content:''; position:absolute; top:-9px; width:18px; height:18px; border-radius:50%; background:var(--paper);
+  }
+  .perforation::before{ left:-29px; }
+  .perforation::after{ right:-29px; }
+  .ticket .bottom{ padding:16px 24px 22px; display:flex; justify-content:space-between; font-size:12.5px; opacity:.8; }
+  .ticket.empty{ background:var(--paper-raised); border:1px dashed var(--line); color:var(--ink-soft); }
+  .ticket.empty .top{ padding:40px 24px; text-align:center; }
+
+  table{ width:100%; border-collapse:collapse; margin-top:6px; }
+  th{ text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--line); }
+  td{ padding:10px 10px; border-bottom:1px solid var(--line); font-size:14px; }
+  tr:last-child td{ border-bottom:none; }
+  td.score{ font-family:'IBM Plex Mono',monospace; font-weight:600; }
+  .rank{ color:var(--ink-soft); font-family:'IBM Plex Mono',monospace; font-size:12.5px; }
+
+  .stat-row{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:22px; }
+  .stat{ border:1px solid var(--line); border-radius:8px; padding:14px 16px; background:var(--paper); }
+  .stat .n{ font-family:'IBM Plex Mono',monospace; font-size:24px; font-weight:600; }
+  .stat .l{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
+
+  .search-row{ display:flex; gap:10px; margin-bottom:22px; }
+  .search-row input{ flex:1; font-family:'IBM Plex Mono',monospace; letter-spacing:.05em; }
+  .empty-state{ color:var(--ink-soft); font-size:14px; padding:30px 0; text-align:center; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="mark">TM</div>
+    <div>
+      <h1>Test Markazi</h1>
+      <span>O'qituvchi paneli</span>
+    </div>
+  </div>
+</div>
+
+<nav class="tabs">
+  <button class="active" data-view="create">Test yaratish</button>
+  <button data-view="results">Natijalar</button>
+</nav>
+
+<main>
+
+  <!-- ================= TEST YARATISH ================= -->
+  <section id="view-create" class="view active">
+    <div class="grid">
+      <div class="card">
+        <h2>Yangi test</h2>
+        <p class="sub">Sinf, fan va mavzuni tanlang — dastur mos savollarni bazadan avtomatik tanlaydi.</p>
+
+        <div class="row2">
+          <div>
+            <label>Sinf</label>
+            <select id="f-grade"><option value="">Yuklanmoqda…</option></select>
+          </div>
+          <div>
+            <label>Fan</label>
+            <select id="f-subject" disabled><option value="">— avval sinfni tanlang —</option></select>
+          </div>
+        </div>
+
+        <label>Mavzu</label>
+        <select id="f-topic" disabled><option value="">— avval fanni tanlang —</option></select>
+
+        <label>Savollar soni (qiyinlik bo'yicha)</label>
+        <div class="diff-row">
+          <div class="diff-box easy">
+            <div class="diff-label"><span>Oson</span><span class="avail" id="avail-easy">—</span></div>
+            <input type="number" id="f-easy" min="0" value="0">
+          </div>
+          <div class="diff-box medium">
+            <div class="diff-label"><span>O'rta</span><span class="avail" id="avail-medium">—</span></div>
+            <input type="number" id="f-medium" min="0" value="0">
+          </div>
+          <div class="diff-box hard">
+            <div class="diff-label"><span>Qiyin</span><span class="avail" id="avail-hard">—</span></div>
+            <input type="number" id="f-hard" min="0" value="0">
+          </div>
+        </div>
+
+        <label>Test vaqti (daqiqa)</label>
+        <input type="number" id="f-duration" min="1" value="30">
+
+        <button class="primary" id="btn-create">Test yaratish</button>
+        <div class="errbox" id="create-err"></div>
+      </div>
+
+      <div class="ticket-wrap">
+        <div class="ticket empty" id="ticket">
+          <div class="top">
+            Test yaratilgach, kod shu yerda chiqadi
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= NATIJALAR ================= -->
+  <section id="view-results" class="view">
+    <div class="card">
+      <h2>Natijalarni ko'rish</h2>
+      <p class="sub">Test kodini kiriting — barcha o'quvchilar natijasi va statistika chiqadi.</p>
+
+      <div class="search-row">
+        <input type="text" id="f-code" placeholder="Masalan: 847291" maxlength="6">
+        <button class="ghost" id="btn-search">Ko'rish</button>
+      </div>
+
+      <div id="results-body">
+        <div class="empty-state">Test kodini kiriting</div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+const API = ''; // bir xil domenda ishlaydi
+
+// ---------- Umumiy: tablarni almashtirish ----------
+document.querySelectorAll('nav.tabs button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('nav.tabs button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-' + btn.dataset.view).classList.add('active');
+  });
+});
+
+// ---------- TEST YARATISH: meta ma'lumotni yuklash ----------
+let TOPICS = [];
+
+async function loadMeta() {
+  const res = await fetch(API + '/api/meta/topics');
+  const data = await res.json();
+  TOPICS = data.topics;
+
+  const grades = [...new Set(TOPICS.map(t => t.grade))].sort((a,b)=>a-b);
+  const gradeSel = document.getElementById('f-grade');
+  gradeSel.innerHTML = '<option value="">— tanlang —</option>' +
+    grades.map(g => `<option value="${g}">${g}-sinf</option>`).join('');
+}
+
+document.getElementById('f-grade').addEventListener('change', e => {
+  const grade = e.target.value;
+  const subjSel = document.getElementById('f-subject');
+  const topicSel = document.getElementById('f-topic');
+  topicSel.innerHTML = '<option value="">— avval fanni tanlang —</option>';
+  topicSel.disabled = true;
+  resetAvail();
+
+  if (!grade) { subjSel.disabled = true; subjSel.innerHTML = '<option value="">— avval sinfni tanlang —</option>'; return; }
+
+  const subjects = [...new Set(TOPICS.filter(t => t.grade == grade).map(t => t.subject))];
+  subjSel.disabled = false;
+  subjSel.innerHTML = '<option value="">— tanlang —</option>' +
+    subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+});
+
+document.getElementById('f-subject').addEventListener('change', e => {
+  const grade = document.getElementById('f-grade').value;
+  const subject = e.target.value;
+  const topicSel = document.getElementById('f-topic');
+  resetAvail();
+
+  if (!subject) { topicSel.disabled = true; topicSel.innerHTML = '<option value="">— avval fanni tanlang —</option>'; return; }
+
+  const topics = TOPICS.filter(t => t.grade == grade && t.subject === subject);
+  topicSel.disabled = false;
+  topicSel.innerHTML = '<option value="">— tanlang —</option>' +
+    topics.map(t => `<option value="${t.topic}">${t.topic}</option>`).join('');
+});
+
+document.getElementById('f-topic').addEventListener('change', e => {
+  const grade = document.getElementById('f-grade').value;
+  const subject = document.getElementById('f-subject').value;
+  const topic = e.target.value;
+  if (!topic) { resetAvail(); return; }
+
+  const t = TOPICS.find(x => x.grade == grade && x.subject === subject && x.topic === topic);
+  document.getElementById('avail-easy').textContent   = t ? `bazada ${t.easy_available}` : '—';
+  document.getElementById('avail-medium').textContent = t ? `bazada ${t.medium_available}` : '—';
+  document.getElementById('avail-hard').textContent   = t ? `bazada ${t.hard_available}` : '—';
+});
+
+function resetAvail(){
+  document.getElementById('avail-easy').textContent = '—';
+  document.getElementById('avail-medium').textContent = '—';
+  document.getElementById('avail-hard').textContent = '—';
+}
+
+// ---------- TEST YARATISH ----------
+document.getElementById('btn-create').addEventListener('click', async () => {
+  const grade = document.getElementById('f-grade').value;
+  const subject = document.getElementById('f-subject').value;
+  const topic = document.getElementById('f-topic').value;
+  const easy_count = Number(document.getElementById('f-easy').value || 0);
+  const medium_count = Number(document.getElementById('f-medium').value || 0);
+  const hard_count = Number(document.getElementById('f-hard').value || 0);
+  const duration_min = Number(document.getElementById('f-duration').value || 0);
+
+  const errBox = document.getElementById('create-err');
+  errBox.style.display = 'none';
+
+  if (!grade || !subject || !topic) {
+    return showErr('Sinf, fan va mavzuni tanlang');
+  }
+  if (easy_count + medium_count + hard_count === 0) {
+    return showErr('Kamida bitta qiyinlik darajasidan savol soni kiriting');
+  }
+  if (!duration_min || duration_min < 1) {
+    return showErr('Test vaqtini kiriting');
+  }
+
+  const btn = document.getElementById('btn-create');
+  btn.disabled = true; btn.textContent = 'Yaratilmoqda…';
+
+  try {
+    const res = await fetch(API + '/api/tests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ grade: Number(grade), subject, topic, easy_count, medium_count, hard_count, duration_min })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Xatolik yuz berdi');
+
+    renderTicket(data, subject, topic);
+  } catch (err) {
+    showErr(err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Test yaratish';
+  }
+
+  function showErr(msg){ errBox.textContent = msg; errBox.style.display = 'block'; }
+});
+
+function renderTicket(data, subject, topic) {
+  document.getElementById('ticket').outerHTML = `
+    <div class="ticket" id="ticket">
+      <div class="top">
+        <p class="eyebrow">Test kodi</p>
+        <p class="code">${data.test_code}</p>
+        <p class="meta">${subject} · ${topic}</p>
+      </div>
+      <div class="perforation"></div>
+      <div class="bottom">
+        <span>${data.total_questions} ta savol</span>
+        <span>${data.duration_min} daqiqa</span>
+      </div>
+    </div>`;
+}
+
+// ---------- NATIJALAR ----------
+document.getElementById('btn-search').addEventListener('click', loadResults);
+document.getElementById('f-code').addEventListener('keydown', e => { if (e.key === 'Enter') loadResults(); });
+
+async function loadResults() {
+  const code = document.getElementById('f-code').value.trim();
+  const body = document.getElementById('results-body');
+  if (!code) return;
+
+  body.innerHTML = '<div class="empty-state">Yuklanmoqda…</div>';
+
+  const res = await fetch(API + `/api/attempts/by-test/${code}`);
+  const data = await res.json();
+  const attempts = data.attempts || [];
+
+  if (attempts.length === 0) {
+    body.innerHTML = '<div class="empty-state">Bu test bo\'yicha hali natija yo\'q</div>';
+    return;
+  }
+
+  const scores = attempts.map(a => Number(a.score_percent));
+  const avg = (scores.reduce((s,x)=>s+x,0) / scores.length).toFixed(1);
+  const max = Math.max(...scores).toFixed(1);
+  const min = Math.min(...scores).toFixed(1);
+
+  const rows = attempts.map((a, i) => `
+    <tr>
+      <td class="rank">${i+1}</td>
+      <td>${escapeHtml(a.student_name)}</td>
+      <td class="score">${a.correct_count}/${a.correct_count + a.wrong_count}</td>
+      <td class="score">${Number(a.score_percent).toFixed(1)}%</td>
+      <td>${formatDuration(a.duration_sec)}</td>
+    </tr>`).join('');
+
+  body.innerHTML = `
+    <div class="stat-row">
+      <div class="stat"><div class="n">${avg}%</div><div class="l">O'rtacha natija</div></div>
+      <div class="stat"><div class="n">${max}%</div><div class="l">Eng yuqori</div></div>
+      <div class="stat"><div class="n">${min}%</div><div class="l">Eng past</div></div>
+    </div>
+    <table>
+      <thead><tr><th></th><th>O'quvchi</th><th>To'g'ri</th><th>Natija</th><th>Vaqt</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function formatDuration(sec){
+  if (sec == null) return '—';
+  const m = Math.floor(sec/60), s = sec%60;
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+loadMeta();
+</script>
+
+</body>
+</html>
