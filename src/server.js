@@ -6,6 +6,7 @@ const testsRouter = require('./routes/tests');
 const attemptsRouter = require('./routes/attempts');
 const metaRouter = require('./routes/meta');
 const authRouter = require('./routes/auth');
+const importRouter = require('./routes/import');
 
 const app = express();
 app.use(cors());
@@ -18,6 +19,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/tests', testsRouter);
 app.use('/api/attempts', attemptsRouter);
 app.use('/api/meta', metaRouter);
+app.use('/api/import', importRouter);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

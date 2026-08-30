@@ -203,6 +203,7 @@
 <nav class="tabs">
   <button class="active" data-view="create">Test yaratish</button>
   <button data-view="results">Natijalar</button>
+  <button data-view="import">Kitobdan import</button>
 </nav>
 
 <main>
@@ -278,7 +279,65 @@
     </div>
   </section>
 
+  <!-- ================= KITOBDAN IMPORT ================= -->
+  <section id="view-import" class="view">
+    <div class="grid">
+      <div class="card">
+        <h2>PDF'dan savol import qilish</h2>
+        <p class="sub">Test kitobi PDF'ini yuklang — dastur "Savol / A) / B) / C) / D) / Javob:" formatidagi savollarni avtomatik ajratib oladi. AI ishlatilmagani uchun hammasi tekshirishga tushadi.</p>
+
+        <label>PDF fayl</label>
+        <input type="file" id="imp-file" accept="application/pdf">
+
+        <div class="row2">
+          <div>
+            <label>Sinf</label>
+            <input type="number" id="imp-grade" min="1" max="11" placeholder="5">
+          </div>
+          <div>
+            <label>Fan</label>
+            <input type="text" id="imp-subject" placeholder="Matematika">
+          </div>
+        </div>
+        <label>Mavzu</label>
+        <input type="text" id="imp-topic" placeholder="Kasrlar">
+        <label>Kitob nomi (ixtiyoriy)</label>
+        <input type="text" id="imp-source" placeholder="5-sinf matematika darsligi">
+
+        <button class="primary" id="btn-import">Yuklash va tahlil qilish</button>
+        <div class="errbox" id="import-err"></div>
+        <div id="import-summary"></div>
+      </div>
+
+      <div class="card">
+        <h2>Tekshirish kutmoqda</h2>
+        <p class="sub">Har birini ko'rib, kerak bo'lsa tuzatib, tasdiqlang.</p>
+        <div class="search-row" style="margin-bottom:14px;">
+          <button class="ghost" id="btn-view-review" style="flex:1;">Review (to'liq)</button>
+          <button class="ghost" id="btn-view-ocrerror" style="flex:1;">OCR xato</button>
+        </div>
+        <div id="review-list"><div class="empty-state">Yuqorida PDF yuklang yoki ro'yxatni ko'ring</div></div>
+      </div>
+    </div>
+  </section>
+
 </main>
+
+<style>
+  .review-item{ border:1px solid var(--line); border-radius:8px; padding:14px; margin-bottom:12px; background:var(--paper); }
+  .review-item .meta{ font-size:11.5px; color:var(--ink-soft); margin-bottom:8px; font-family:'IBM Plex Mono',monospace; }
+  .review-item textarea, .review-item input[type=text]{
+    width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:6px; background:#fff;
+    font-family:'Inter'; font-size:13.5px; margin-bottom:6px; resize:vertical;
+  }
+  .review-item .opt-row{ display:flex; gap:6px; align-items:center; margin-bottom:6px; }
+  .review-item .opt-row span{ width:18px; font-weight:600; font-size:12.5px; color:var(--ink-soft); }
+  .review-item .btn-row{ display:flex; gap:8px; margin-top:8px; }
+  .review-item .btn-row button{ flex:1; padding:8px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; border:none; }
+  .review-item .btn-approve{ background:var(--green-soft); color:var(--green); }
+  .review-item .btn-delete{ background:var(--red-soft); color:var(--red); }
+  .review-item select{ padding:6px 8px; border:1px solid var(--line); border-radius:6px; font-size:12.5px; margin-bottom:6px; }
+</style>
 
 </div><!-- /#app-screen -->
 
@@ -540,6 +599,133 @@ function formatDuration(sec){
 }
 function escapeHtml(s){
   return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ---------- KITOBDAN IMPORT ----------
+document.getElementById('btn-import').addEventListener('click', async () => {
+  const fileInput = document.getElementById('imp-file');
+  const grade = document.getElementById('imp-grade').value.trim();
+  const subject = document.getElementById('imp-subject').value.trim();
+  const topic = document.getElementById('imp-topic').value.trim();
+  const source = document.getElementById('imp-source').value.trim();
+  const errBox = document.getElementById('import-err');
+  const summaryBox = document.getElementById('import-summary');
+  errBox.style.display = 'none';
+  summaryBox.innerHTML = '';
+
+  if (!fileInput.files[0]) return showImpErr('PDF faylni tanlang');
+  if (!grade || !subject || !topic) return showImpErr('Sinf, fan va mavzuni kiriting');
+
+  const btn = document.getElementById('btn-import');
+  btn.disabled = true; btn.textContent = 'Yuklanmoqda va tahlil qilinmoqda…';
+
+  const formData = new FormData();
+  formData.append('pdf', fileInput.files[0]);
+  formData.append('grade', grade);
+  formData.append('subject', subject);
+  formData.append('topic', topic);
+  if (source) formData.append('source_book', source);
+
+  try {
+    const res = await authFetch(API + '/api/import/upload', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Xatolik yuz berdi');
+
+    summaryBox.innerHTML = `
+      <div class="stat-row" style="margin-top:18px;">
+        <div class="stat"><div class="n">${data.total_found}</div><div class="l">Jami topildi</div></div>
+        <div class="stat"><div class="n" style="color:var(--amber)">${data.review}</div><div class="l">Tekshirish kerak</div></div>
+        <div class="stat"><div class="n" style="color:var(--red)">${data.ocr_error}</div><div class="l">OCR xato</div></div>
+      </div>`;
+    loadReviewList('review');
+  } catch (err) {
+    showImpErr(err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Yuklash va tahlil qilish';
+  }
+
+  function showImpErr(msg){ errBox.textContent = msg; errBox.style.display = 'block'; }
+});
+
+document.getElementById('btn-view-review').addEventListener('click', () => loadReviewList('review'));
+document.getElementById('btn-view-ocrerror').addEventListener('click', () => loadReviewList('ocr_error'));
+
+async function loadReviewList(status) {
+  const list = document.getElementById('review-list');
+  list.innerHTML = '<div class="empty-state">Yuklanmoqda…</div>';
+
+  const res = await authFetch(API + `/api/import/pending?status=${status}`);
+  const data = await res.json();
+  const items = data.questions || [];
+
+  if (items.length === 0) {
+    list.innerHTML = `<div class="empty-state">Bu bo'limda savol yo'q</div>`;
+    return;
+  }
+
+  list.innerHTML = items.map(q => renderReviewItem(q)).join('');
+}
+
+function renderReviewItem(q) {
+  const opts = ['A','B','C','D'];
+  return `
+    <div class="review-item" id="ri-${q.id}">
+      <div class="meta">#${q.id} · ${escapeHtml(q.topic)} · sahifa ${q.source_page ?? '—'} · ${q.source_book ? escapeHtml(q.source_book) : ''}</div>
+      <textarea rows="2" id="ri-q-${q.id}">${escapeHtml(q.question)}</textarea>
+      ${opts.map(l => `
+        <div class="opt-row">
+          <span>${l})</span>
+          <input type="text" id="ri-opt${l}-${q.id}" value="${escapeHtml(q['option_' + l.toLowerCase()] || '')}">
+        </div>`).join('')}
+      <label style="margin:8px 0 4px;">To'g'ri javob</label>
+      <select id="ri-ans-${q.id}">
+        <option value="">— tanlang —</option>
+        ${opts.map(l => `<option value="${l}" ${q.correct_answer === l ? 'selected' : ''}>${l}</option>`).join('')}
+      </select>
+      <label style="margin:8px 0 4px;">Qiyinlik</label>
+      <select id="ri-diff-${q.id}">
+        ${['easy','medium','hard'].map(d => `<option value="${d}" ${q.difficulty === d ? 'selected' : ''}>${d === 'easy' ? 'Oson' : d === 'medium' ? "O'rta" : 'Qiyin'}</option>`).join('')}
+      </select>
+      <div class="btn-row">
+        <button class="btn-approve" onclick="approveReviewItem(${q.id})">Tasdiqlash</button>
+        <button class="btn-delete" onclick="deleteReviewItem(${q.id})">O'chirish</button>
+      </div>
+    </div>`;
+}
+
+async function approveReviewItem(id) {
+  const answer = document.getElementById(`ri-ans-${id}`).value;
+  if (!answer) { alert("To'g'ri javobni tanlang"); return; }
+
+  const body = {
+    question: document.getElementById(`ri-q-${id}`).value.trim(),
+    option_a: document.getElementById(`ri-optA-${id}`).value.trim(),
+    option_b: document.getElementById(`ri-optB-${id}`).value.trim(),
+    option_c: document.getElementById(`ri-optC-${id}`).value.trim(),
+    option_d: document.getElementById(`ri-optD-${id}`).value.trim(),
+    correct_answer: answer,
+    difficulty: document.getElementById(`ri-diff-${id}`).value,
+    status: 'approved',
+  };
+
+  const res = await authFetch(API + `/api/import/questions/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (res.ok) {
+    document.getElementById(`ri-${id}`).remove();
+  } else {
+    alert("Xatolik yuz berdi");
+  }
+}
+
+async function deleteReviewItem(id) {
+  if (!confirm("Bu savolni butunlay o'chirasizmi?")) return;
+  const res = await authFetch(API + `/api/import/questions/${id}`, { method: 'DELETE' });
+  if (res.ok) {
+    document.getElementById(`ri-${id}`).remove();
+  }
 }
 </script>
 
