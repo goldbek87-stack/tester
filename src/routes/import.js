@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const pdfParse = require('pdf-parse');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
-const { parseQuestions } = require('../services/questionParser');
+const { parseQuestionsFromLines } = require('../services/questionParser');
+const { extractColoredPages } = require('../services/pdfColorExtractor');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -16,44 +16,6 @@ const upload = multer({
     cb(null, true);
   },
 });
-
-const PAGE_MARKER = '\n\n<<<PAGE_BREAK>>>\n\n';
-
-/**
- * pdf.js har bir matn bo'lagini alohida beradi va ular orasida \n bo'lmaydi.
- * Shuning uchun qatorlarni y-koordinata (vertikal joylashuv) o'zgarishiga
- * qarab qayta tiklaymiz — aks holda "A) 1 B) 5/4 C)..." bitta qatorga
- * yopishib qolib, regex savol/variantlarni ajrata olmaydi.
- */
-function renderPageWithLineBreaks(pageData) {
-  return pageData.getTextContent().then((tc) => {
-    let lastY = null;
-    let line = '';
-    const lines = [];
-
-    tc.items.forEach((item) => {
-      const y = item.transform[5];
-      if (lastY !== null && Math.abs(y - lastY) > 1) {
-        lines.push(line.trim());
-        line = '';
-      }
-      line += item.str + ' ';
-      lastY = y;
-    });
-    if (line.trim()) lines.push(line.trim());
-
-    return lines.join('\n') + PAGE_MARKER;
-  });
-}
-
-/**
- * PDF'ni sahifama-sahifa matnga aylantiradi (har bir savolning qaysi
- * sahifadan olinganini bilish uchun sahifalar orasiga maxsus belgi qo'yiladi).
- */
-async function extractPagedText(buffer) {
-  const data = await pdfParse(buffer, { pagerender: renderPageWithLineBreaks });
-  return data.text.split(PAGE_MARKER);
-}
 
 /**
  * POST /api/import/upload
@@ -70,16 +32,16 @@ router.post('/upload', requireAuth, upload.single('pdf'), async (req, res) => {
 
   let pages;
   try {
-    pages = await extractPagedText(req.file.buffer);
+    pages = await extractColoredPages(req.file.buffer);
   } catch (err) {
     return res.status(400).json({ error: 'PDF o\'qib bo\'lmadi: ' + err.message });
   }
 
   const toInsert = []; // { ...fields, status }
 
-  pages.forEach((pageText, idx) => {
+  pages.forEach((pageLines, idx) => {
     const pageNum = idx + 1;
-    const { review, ocrError } = parseQuestions(pageText, {
+    const { review, ocrError } = parseQuestionsFromLines(pageLines, {
       grade: Number(grade), subject, topic,
       source_book: source_book || req.file.originalname,
     });
