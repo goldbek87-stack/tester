@@ -16,12 +16,16 @@
 // Node'da bular yo'q, shuning uchun zararsiz "stub"lar bilan almashtiramiz —
 // bu faqat shrift yuklash xatosining oldini oladi, natijaga ta'sir qilmaydi.
 function ensureBrowserStubs() {
+  const { createCanvas } = require('@napi-rs/canvas');
   if (!global.FontFace) {
     global.FontFace = class { constructor() { this.loaded = Promise.resolve(); } };
   }
   if (!global.document) {
     global.document = {
-      createElement: () => ({ sheet: { insertRule: () => {}, cssRules: [] }, remove: () => {} }),
+      createElement: (tag) => {
+        if (tag === 'canvas') return createCanvas(1, 1);
+        return { sheet: { insertRule: () => {}, cssRules: [] }, remove: () => {} };
+      },
       documentElement: { getElementsByTagName: () => [{ appendChild: () => {} }] },
       fonts: { delete: () => {}, add: () => {} },
     };
@@ -44,18 +48,16 @@ function isRedColor([r, g, b]) {
 
 /**
  * Bitta sahifadagi matnni {text, isRed} segmentlariga ega qatorlar
- * ro'yxati sifatida qaytaradi.
+ * ro'yxati sifatida qaytaradi, HAR BIR QATORNING RASM (canvas) piksel
+ * bo'yicha vertikal chegarasi (topY/bottomY) bilan birga.
  */
-async function extractPageLines(PDFJS, page) {
+async function extractPageLines(PDFJS, page, viewport) {
   const OPS = PDFJS.OPS;
   const [textContent, opList] = await Promise.all([
     page.getTextContent(),
     page.getOperatorList(),
   ]);
 
-  // Ketma-ket showText chaqiruvlarini, rang o'zgarmaguncha, bitta "run" deb hisoblaymiz.
-  // Bu runlar soni deyarli har doim textContent.items soniga teng chiqadi,
-  // chunki rang o'zgarishi PDF generatorda odatda yangi matn segmentini boshlaydi.
   const runs = [];
   let currentColor = [0, 0, 0];
   let inRun = false;
@@ -79,23 +81,48 @@ async function extractPageLines(PDFJS, page) {
     }
   }
 
-  // Har bir matn itemini navbatdagi run rangi bilan bog'laymiz.
-  // (Runlar soni item sonidan kam bo'lib qolsa — qolganlarini qora deb olamiz.)
-  const taggedItems = textContent.items.map((item, idx) => ({
-    text: item.str,
-    y: Math.round(item.transform[5]),
-    isRed: runs[idx] ? isRedColor(runs[idx].color) : false,
-  }));
+  // viewport.transform = [a,0,0,d,e,f] — PDF koordinatasini canvas pikseliga o'giradi
+  const [a, , , d, e, f] = viewport.transform;
+  const toCanvasY = (pdfY) => d * pdfY + f;
+  const toCanvasX = (pdfX) => a * pdfX + e;
 
-  // Bir xil Y koordinatadagi itemlarni bitta "qator"ga yig'amiz (segmentlarni saqlab qolgan holda)
+  const taggedItems = textContent.items.map((item, idx) => {
+    const fontSize = Math.abs(item.transform[0]) || 8;
+    const pdfYBaseline = item.transform[5];
+    const pdfYTop = pdfYBaseline + fontSize * 0.8;
+    const pdfYBottom = pdfYBaseline - fontSize * 0.25;
+    const pdfXLeft = item.transform[4];
+    const pdfXRight = item.transform[4] + (item.width || 0);
+    return {
+      text: item.str,
+      y: Math.round(item.transform[5]),
+      isRed: runs[idx] ? isRedColor(runs[idx].color) : false,
+      canvasYTop: toCanvasY(pdfYTop),
+      canvasYBottom: toCanvasY(pdfYBottom),
+      canvasXLeft: toCanvasX(pdfXLeft),
+      canvasXRight: toCanvasX(pdfXRight),
+    };
+  });
+
   const lines = [];
   let currentLine = null;
   taggedItems.forEach((item) => {
     if (!item.text.trim()) return;
     if (currentLine && Math.abs(currentLine.y - item.y) <= 1) {
       currentLine.segments.push({ text: item.text, isRed: item.isRed });
+      currentLine.canvasYTop = Math.min(currentLine.canvasYTop, item.canvasYTop);
+      currentLine.canvasYBottom = Math.max(currentLine.canvasYBottom, item.canvasYBottom);
+      currentLine.canvasXLeft = Math.min(currentLine.canvasXLeft, item.canvasXLeft);
+      currentLine.canvasXRight = Math.max(currentLine.canvasXRight, item.canvasXRight);
     } else {
-      currentLine = { y: item.y, segments: [{ text: item.text, isRed: item.isRed }] };
+      currentLine = {
+        y: item.y,
+        segments: [{ text: item.text, isRed: item.isRed }],
+        canvasYTop: item.canvasYTop,
+        canvasYBottom: item.canvasYBottom,
+        canvasXLeft: item.canvasXLeft,
+        canvasXRight: item.canvasXRight,
+      };
       lines.push(currentLine);
     }
   });
@@ -105,16 +132,38 @@ async function extractPageLines(PDFJS, page) {
 
 /**
  * @param {Buffer} buffer - PDF fayl
- * @returns {Promise<Array<Array<{y:number, segments:Array<{text,isRed}>}>>>} sahifalar -> qatorlar
+ * @param {object} opts - { renderImages: boolean } — rasm kerak bo'lmasa false qilib tezlashtirish mumkin
+ * @returns {Promise<Array<{lines, canvas, width, height}>>} har bir sahifa uchun qatorlar + render qilingan rasm
  */
-async function extractColoredPages(buffer) {
+async function extractColoredPages(buffer, opts = {}) {
+  const { renderImages = true } = opts;
+  const { createCanvas } = require('@napi-rs/canvas');
   const PDFJS = await getPDFJS(buffer);
   const doc = await PDFJS.getDocument(buffer);
   const pages = [];
+
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);
-    pages.push(await extractPageLines(PDFJS, page));
+    const viewport = page.getViewport(2.0); // 2x — kichik matnlar ham aniq ko'rinishi uchun
+    const lines = await extractPageLines(PDFJS, page, viewport);
+
+    let canvas = null;
+    if (renderImages) {
+      try {
+        canvas = createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvasContext: ctx, viewport }).promise;
+      } catch (err) {
+        console.error(`[import] Sahifa ${i} rasmga render qilinmadi:`, err.message);
+        canvas = null; // shu sahifadagi savollar rasmsiz, faqat matn bilan qoladi
+      }
+    }
+
+    pages.push({ lines, canvas, width: viewport.width, height: viewport.height });
   }
+
   doc.destroy();
   return pages;
 }

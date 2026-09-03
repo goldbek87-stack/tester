@@ -15,6 +15,10 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<!-- KaTeX: matn ichidagi $...$ formulalarni chiroyli matematik ko'rinishga aylantiradi -->
+<link rel="stylesheet" href="/vendor/katex/katex.min.css">
+<script defer src="/vendor/katex/katex.min.js"></script>
+<script defer src="/vendor/katex/auto-render.min.js"></script>
 <style>
   :root{
     --paper:#F5F2EA; --paper-raised:#FFFFFF; --ink:#1C1B18; --ink-soft:#6B6558;
@@ -69,6 +73,7 @@
 
   #quiz-screen .body{ padding:26px 24px; }
   .question-text{ font-family:'Fraunces',serif; font-size:19px; font-weight:500; line-height:1.4; margin:0 0 22px; }
+  .question-image{ max-width:100%; height:auto; margin:0 0 22px; display:block; border-radius:6px; }
   .option{
     display:flex; align-items:center; gap:12px; width:100%; text-align:left; padding:13px 15px;
     border:1.5px solid var(--line); border-radius:9px; background:var(--paper); margin-bottom:10px;
@@ -243,7 +248,14 @@ function renderQuestion() {
   const q = questions[currentIndex];
   document.getElementById('progress-label').textContent = `${currentIndex + 1} / ${questions.length}`;
   document.getElementById('progress-fill').style.width = `${((currentIndex) / questions.length) * 100}%`;
-  document.getElementById('question-text').textContent = q.question;
+
+  const textEl = document.getElementById('question-text');
+  if (q.question_image) {
+    // Formula/murakkab belgilar bo'lgan savollar rasm sifatida ko'rsatiladi (aniqroq)
+    textEl.innerHTML = `<img class="question-image" src="${q.question_image}" alt="Savol rasmi">`;
+  } else {
+    textEl.textContent = q.question;
+  }
 
   const opts = [['A', q.option_a], ['B', q.option_b], ['C', q.option_c], ['D', q.option_d]];
   const container = document.getElementById('options-container');
@@ -252,13 +264,24 @@ function renderQuestion() {
   opts.forEach(([letter, text]) => {
     const div = document.createElement('div');
     div.className = 'option' + (answers[q.id] === letter ? ' selected' : '');
-    div.innerHTML = `<span class="letter">${letter}</span><span>${escapeHtml(text)}</span>`;
+    div.innerHTML = `<span class="letter">${letter}</span><span class="opt-text">${escapeHtml(text)}</span>`;
     div.onclick = () => {
       answers[q.id] = letter;
       renderQuestion();
     };
     container.appendChild(div);
   });
+
+  // KaTeX: matndagi $...$ formulalarni chiroyli matematik ko'rinishga aylantiradi
+  if (window.renderMathInElement) {
+    renderMathInElement(document.getElementById('quiz-screen'), {
+      delimiters: [
+        { left: '$$', right: '$$', display: true },
+        { left: '$', right: '$', display: false },
+      ],
+      throwOnError: false,
+    });
+  }
 
   document.getElementById('btn-back').style.visibility = currentIndex === 0 ? 'hidden' : 'visible';
   const nextBtn = document.getElementById('btn-next');

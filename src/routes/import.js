@@ -17,6 +17,33 @@ const upload = multer({
   },
 });
 
+const IMAGE_PADDING = 4; // rasm chetlarida ozgina bo'sh joy (piksel)
+
+/**
+ * Sahifa canvas'idan savol matni joylashgan qismini kesib, PNG base64 qilib qaytaradi.
+ * Faqat matn joylashgan KENGLIKNI kesamiz (butun sahifa emas) — aks holda
+ * tor telefon ekraniga siqilganda matn juda kichrayib ketadi.
+ */
+function cropQuestionImage(pageCanvas, bounds, pageWidth) {
+  const { createCanvas } = require('@napi-rs/canvas');
+  const top = Math.max(0, Math.floor(bounds.top - IMAGE_PADDING));
+  const bottom = Math.min(pageCanvas.height, Math.ceil(bounds.bottom + IMAGE_PADDING));
+  const left = Math.max(0, Math.floor((bounds.left ?? 0) - IMAGE_PADDING));
+  const right = Math.min(pageWidth, Math.ceil((bounds.right ?? pageWidth) + IMAGE_PADDING));
+
+  const height = bottom - top;
+  const width = right - left;
+  if (height <= 0 || height > 600 || width <= 0) return null;
+
+  const cropCanvas = createCanvas(width, height);
+  const ctx = cropCanvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, width, height);
+  ctx.drawImage(pageCanvas, left, top, width, height, 0, 0, width, height);
+
+  return 'data:image/png;base64,' + cropCanvas.toBuffer('image/png').toString('base64');
+}
+
 /**
  * POST /api/import/upload
  * Form-data: pdf (fayl), grade, subject, topic, source_book (ixtiyoriy)
@@ -39,14 +66,26 @@ router.post('/upload', requireAuth, upload.single('pdf'), async (req, res) => {
 
   const toInsert = []; // { ...fields, status }
 
-  pages.forEach((pageLines, idx) => {
+  pages.forEach((pageData, idx) => {
     const pageNum = idx + 1;
-    const { review, ocrError } = parseQuestionsFromLines(pageLines, {
+    const { review, ocrError } = parseQuestionsFromLines(pageData.lines, {
       grade: Number(grade), subject, topic,
       source_book: source_book || req.file.originalname,
     });
-    review.forEach((q) => toInsert.push({ ...q, source_page: pageNum, status: 'review' }));
-    ocrError.forEach((q) => toInsert.push({ ...q, source_page: pageNum, status: 'ocr_error' }));
+
+    [...review.map(q => ({ q, status: 'review' })), ...ocrError.map(q => ({ q, status: 'ocr_error' }))]
+      .forEach(({ q, status }) => {
+        let question_image = null;
+        try {
+          if (pageData.canvas && q.imageBounds) {
+            question_image = cropQuestionImage(pageData.canvas, q.imageBounds, pageData.width);
+          }
+        } catch (e) {
+          console.error(`[import] Savol #${q.source_question_no} uchun rasm kesib bo'lmadi:`, e.message);
+        }
+
+        toInsert.push({ ...q, source_page: pageNum, status, question_image });
+      });
   });
 
   if (toInsert.length === 0) {
@@ -63,10 +102,10 @@ router.post('/upload', requireAuth, upload.single('pdf'), async (req, res) => {
       await client.query(
         `INSERT INTO questions
            (grade, subject, topic, question, option_a, option_b, option_c, option_d,
-            correct_answer, difficulty, source_book, source_page, status)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+            correct_answer, difficulty, source_book, source_page, status, question_image)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
         [q.grade, q.subject, q.topic, q.question, q.option_a, q.option_b, q.option_c, q.option_d,
-         q.correct_answer, q.difficulty, q.source_book, q.source_page, q.status]
+         q.correct_answer, q.difficulty, q.source_book, q.source_page, q.status, q.question_image]
       );
     }
     await client.query('COMMIT');

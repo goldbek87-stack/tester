@@ -118,6 +118,15 @@ function parseQuestionsFromLines(pageLines, meta) {
 
     totalFound++;
 
+    // Savol matni (variantlargacha bo'lgan qatorlar)ning rasm uchun chegarasi.
+    // Agar savol va birinchi variant BITTA qatorda bo'lsa (optionStart === 0),
+    // baribir shu qatorning o'zini rasmga olamiz (bo'sh chegara hosil bo'lmasligi uchun).
+    const questionOnlyLines = blockLines.slice(0, Math.max(1, optionStart));
+    const imageTop = Math.min(...questionOnlyLines.map((l) => l.canvasYTop));
+    const imageBottom = Math.max(...questionOnlyLines.map((l) => l.canvasYBottom));
+    const imageLeft = Math.min(...questionOnlyLines.map((l) => l.canvasXLeft));
+    const imageRight = Math.max(...questionOnlyLines.map((l) => l.canvasXRight));
+
     const optionLines = blockLines.slice(optionStart);
     const { options, colorAnswer, fullText } = extractOptionsFromLines(optionLines);
 
@@ -142,6 +151,7 @@ function parseQuestionsFromLines(pageLines, meta) {
       difficulty: guessDifficulty(question),
       source_book: meta.source_book || null,
       source_question_no: questionNo,
+      imageBounds: { top: imageTop, bottom: imageBottom, left: imageLeft, right: imageRight },
     };
 
     if (!hasAllOptions || !correctAnswer) {

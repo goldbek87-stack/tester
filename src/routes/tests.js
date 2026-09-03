@@ -124,7 +124,7 @@ router.get('/:code', async (req, res) => {
   }
 
   const questionsRes = await pool.query(
-    `SELECT q.id, q.question, q.option_a, q.option_b, q.option_c, q.option_d, tq.position
+    `SELECT q.id, q.question, q.question_image, q.option_a, q.option_b, q.option_c, q.option_d, tq.position
      FROM test_questions tq
      JOIN questions q ON q.id = tq.question_id
      WHERE tq.test_id = $1

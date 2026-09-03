@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS questions (
     option_c        TEXT NOT NULL,
     option_d        TEXT NOT NULL,
     correct_answer  CHAR(1) CHECK (correct_answer IN ('A','B','C','D')), -- NULL bo'lishi mumkin: import paytida javob topilmagan bo'lsa
+    question_image  TEXT, -- savol matni rasm sifatida (formula/belgilar noto'g'ri o'qilganda ishlatiladi)
     difficulty      VARCHAR(10) NOT NULL CHECK (difficulty IN ('easy','medium','hard')),
     source_book     VARCHAR(255),
     source_page     INTEGER,
